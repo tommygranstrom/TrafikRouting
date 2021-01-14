@@ -14,6 +14,9 @@ class Graph():
         self.searchDate = ""
         self.dates = {}
         self.calculatedPaths = []
+        self.maxTransfers = 0
+        self.maxnPaths = 0
+        self.keepSearch = True
 
         with open("serviceId.txt") as f:
             lines = f.readlines()
@@ -53,9 +56,9 @@ class Graph():
     def compTime(self,t1,t2):
         time1 = self.datetime.strptime(t1,"%H:%M:%S")
         time2 = self.datetime.strptime(t2,"%H:%M:%S")
-        if time1.hour<time2.hour:
+        if int(time1.hour)<int(time2.hour):
             return True
-        elif time1.hour==time2.hour and time1.minute<time2.minute:
+        elif int(time1.hour)==int(time2.hour) and int(time1.minute)<int(time2.minute):
             return True
         return False
 
@@ -72,8 +75,8 @@ class Graph():
             arrTimes = lines[10][:-2].split(",")
     
         for i in range(len(servId)):
-            if self.checkServId(date,servId[i]) == True and self.compTime(goTime,self.blockTime[self.numIdToIdx[childNodes[i]]['idx']]):
-                if self.compTime(goTime,depTimes[i]):
+            if self.checkServId(date,servId[i]) == True and self.compTime(arrTimes[i],self.blockTime[self.numIdToIdx[childNodes[i]]['idx']]) == True:
+                if self.compTime(goTime,depTimes[i]) == True:
                     if self.checkIfInList(parentRoute,routeId[i]) == True and parentTripId == tripId[i]:
                         tmp.append([childNodes[i],routeId[i],tripId[i],depTimes[i],arrTimes[i]])
                     elif self.checkIfInList(parentRoute,routeId[i])==False:
@@ -87,10 +90,16 @@ class Graph():
         visited[atNode] = True
         routes.append(routeId)
         if atNode == destination:
+            if self.foundPaths == 200:
+                self.keepSearch = False
+            # print("---")
+            # for j in range(len(path)):
+            #     print(self.idxToText[int(path[j].node)],path[j].arrTime,path[j].depTime)#,path[j].routeId,tripId)
+            # print("---")
             self.foundPaths = self.foundPaths + 1
             self.calculatedPaths.append(path.copy())
         
-        elif len(self.Counter(routes).keys())<20:
+        elif len(self.Counter(routes).keys())<maxTransfers and self.keepSearch == True:
             tmp = self.getOkChilds(atNode,goTime,routes,tripId,date)
             for i in range(len(tmp)):
                 if visited[self.numIdToIdx[tmp[i][0]]['idx']] == False:
@@ -99,14 +108,16 @@ class Graph():
                     self.allPathsUtil(self.numIdToIdx[tmp[i][0]]['idx'],destination,tmp[i][4],tmp[i][1],tmp[i][2],path,visited,date,routes)
                     naf = self.foundPaths
                     deltaPaths = naf - nBef
-                    if deltaPaths == 0:
+                    if deltaPaths == 0:# and self.compTime(tmp[i][4],self.blockTime[self.numIdToIdx[tmp[i][0]]['idx']]) == True:
                         self.blockTime[self.numIdToIdx[tmp[i][0]]['idx']] = tmp[i][4]
         path.pop()
         routes.pop()
         visited[atNode] = False
 
 
-    def allPaths(self,start,destination,date,goTime,lastTime):
+    def allPaths(self,start,destination,date,goTime,lastTime,maxT,nPaths):
+        self.maxnPaths = nPaths
+        self.maxTransfers = maxT
         path = []
         visited = [False]*self.nStops
         for i in range(self.nStops):
@@ -116,24 +127,26 @@ class Graph():
         routes = []
         self.allPathsUtil(start,destination,goTime,"","",path,visited,date,routes)
         toc = time.perf_counter() 
-        for j in range(len(self.calculatedPaths)):
-            print("---")
-            for i in range(len(self.calculatedPaths[j])):
-                print(self.idxToText[int(self.calculatedPaths[j][i].node)],self.calculatedPaths[j][i].arrTime,self.calculatedPaths[j][i].depTime)
-            print("---") 
+        # for j in range(len(self.calculatedPaths)):
+        #     print("---")
+        #     for i in range(len(self.calculatedPaths[j])):
+        #         print(self.idxToText[int(self.calculatedPaths[j][i].node)],self.calculatedPaths[j][i].arrTime,self.calculatedPaths[j][i].depTime)
+        #     print("---") 
         print(self.foundPaths," paths found")
         print(f"Calculated in {toc - tic:0.4f} seconds")
 
 g = Graph()
-start = 134#'740000144' #Luleå
-stop = 140#'740000150' #Boden
-#start = 7#'740000007' #Norrköping
-#stop = 9#'740000009' #Linköping
-#start = 1#Stockholm
-#stop = 5#uppsala
+#start = 134 #'740000144' #Luleå
+#stop = 140 #'740000150' #Boden
+#start = 7 #'740000007' #Norrköping
+#stop = 9 #'740000009' #Linköping
+start = 1 #Stockholm
+stop = 5 #Uppsala
 goDate = '20200816'
-startTime = '06:00:00'
-endTime =  '12:00:00'
-g.allPaths(start,stop,goDate,startTime,endTime)
+startTime = '00:00:00'
+endTime =  '23:59:00'
+maxTransfers = 20
+maxnPaths = 200
+g.allPaths(start,stop,goDate,startTime,endTime,maxTransfers,maxnPaths)
 
 
